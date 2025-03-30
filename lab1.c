@@ -122,21 +122,21 @@
                       NULL,
                       0);
  
-      /* Create print task */
-      OSTaskCreateExt(PrintTask,
-                      NULL,
-                      (void *)&PrintTaskStk[TASK_STACKSIZE-1],
-                      PRINT_TASK_PRIO,
-                      PRINT_TASK_PRIO,
-                      PrintTaskStk,
-                      TASK_STACKSIZE,
-                      NULL,
-                      0);
+ //     /* Create print task */
+ //     OSTaskCreateExt(PrintTask,
+ //                     NULL,
+ //                     (void *)&PrintTaskStk[TASK_STACKSIZE-1],
+ //                     PRINT_TASK_PRIO,
+ //                     PRINT_TASK_PRIO,
+ //                     PrintTaskStk,
+ //                     TASK_STACKSIZE,
+ //                     NULL,
+ //                     0);
  
       /* Display header */
       printf("\nTime  Event       [From]   [To]\n");
       printf("---------------------------------\n");
- 
+      OSTimeSet(0);                            /* Reset system time */
       /* Delete self */
       OSTaskDel(OS_PRIO_SELF);
   }
@@ -162,18 +162,12 @@
       OSTCBCur->period = param->p;
       OS_EXIT_CRITICAL();
  
-      start = OSTimeGet();
+      start = (INT32U)((OSTimeGet() / OSTCBCur->period) * OSTCBCur->period);
  
       while(1) {
           /* Consume CPU for c ticks */
           //printf("Task %d: high proity %3d\n ",(int)OSTCBCur->OSTCBPrio,(int)OSPrioHighRdy);
-          while(OSTCBCur->compTime > 0 && ((OSTCBCur->period) - (OSTimeGet() - start))>0) {
-              if ((int)OSTCBCur->OSTCBPrio==8){
-                  //printf("Task %d: compTime = %d\n", (int)OSTCBCur->OSTCBPrio, (int)OSTCBCur->compTime);
-                  char tempBuf[MSG_BUF_SIZE];
-                  sprintf(tempBuf,"Task %d: compTime = %d\n", (int)OSTCBCur->OSTCBPrio, (int)OSTCBCur->compTime);
-                  AddMessageToQueue(tempBuf);
-               }
+          while(((int)((OSTCBCur->period) - (OSTimeGet() - start))>0)&& OSTCBCur->compTime > 0 ) {
               //printf("[hello] Task %d: compTime = %d\n", (int)OSTCBCur->OSTCBPrio, (int)OSTCBCur->compTime);
               /* Do nothing, just consume CPU time */
           }
@@ -190,9 +184,23 @@
           OSTCBCur->compTime = param->c;
           OS_EXIT_CRITICAL();
  
+          OS_ENTER_CRITICAL();
+          while (MsgCount > 0) {
+              printf("%s", MsgQueue[MsgQueueOut]);
+              MsgQueueOut = (MsgQueueOut + 1) % MAX_MSG_QUEUE;
+              MsgCount--;
+          }
+          OS_EXIT_CRITICAL();
+ //		 if ((int)OSTCBCur->OSTCBPrio==8){
+ //			 //printf("Task %d: compTime = %d\n", (int)OSTCBCur->OSTCBPrio, (int)OSTCBCur->compTime);
+ //			 char tempBuf[MSG_BUF_SIZE];
+ //			 //sprintf(tempBuf,"Task %d: compTime = %d\n", (int)OSTCBCur->OSTCBPrio, (int)OSTCBCur->compTime);
+ //			 sprintf(tempBuf,"Task %d: dly = %d\n",  (int)OSTCBCur->OSTCBPrio,(int)toDelay);
+ //			 AddMessageToQueue(tempBuf);
+ //		  }
  
           /* Delay until next period */
-          if (toDelay > 0) {
+          if (((int)toDelay) > 0) {
               OSTimeDly(toDelay);
           } else {
               /* Deadline violation occurred */
@@ -202,31 +210,33 @@
               AddMessageToQueue(tempBuf);
  
               /* Reset for next period */
-              start = OSTimeGet();
+              // 如果出現截止期違例，重新調整週期計數
+              int periodCount = OSTimeGet() / OSTCBCur->period;
+              start = periodCount * OSTCBCur->period;
           }
       }
   }
  
-  /* Print task implementation */
-  void PrintTask(void *pdata)
-  {
-     while(1) {
-         #if OS_CRITICAL_METHOD == 3
-         OS_CPU_SR cpu_sr = 0;
-         #endif
-         OS_ENTER_CRITICAL();
-         if (MsgCount > 0) {
-             printf("%s\n", MsgQueue[MsgQueueOut]);
-             MsgQueueOut = (MsgQueueOut + 1) % MAX_MSG_QUEUE;
-             MsgCount--;
-         }
- //		if (MsgReady==1){
- //			 printf("%s\n", MsgBuffer);
- //			 MsgReady = 0;
+ // /* Print task implementation */
+ // void PrintTask(void *pdata)
+ // {
+ //	while(1) {
+ //		#if OS_CRITICAL_METHOD == 3
+ //		OS_CPU_SR cpu_sr = 0;
+ //		#endif
+ //		OS_ENTER_CRITICAL();
+ //		if (MsgCount > 0) {
+ //			printf("%s\n", MsgQueue[MsgQueueOut]);
+ //			MsgQueueOut = (MsgQueueOut + 1) % MAX_MSG_QUEUE;
+ //			MsgCount--;
  //		}
-         OS_EXIT_CRITICAL();
-         //OSTimeDly(1);
-     }
-  }
+ ////		if (MsgReady==1){
+ ////			 printf("%s\n", MsgBuffer);
+ ////			 MsgReady = 0;
+ ////		}
+ //		OS_EXIT_CRITICAL();
+ //		//OSTimeDly(1);
+ //	}
+ // }
  
  
