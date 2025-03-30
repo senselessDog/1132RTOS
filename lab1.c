@@ -46,7 +46,7 @@
   TASK_PARAM Task1Param = {1, 3};  /* t1(1,3) */
   TASK_PARAM Task2Param = {3, 6};  /* t2(3,6) */
   TASK_PARAM Task3Param = {4, 9};  /* t3(4,9) */
- 
+  INT32U TaskStartTime;
   /* Function prototypes */
   void TaskStart(void *pdata);
   void PeriodicTask(void *pdata);
@@ -136,7 +136,9 @@
       /* Display header */
       printf("\nTime  Event       [From]   [To]\n");
       printf("---------------------------------\n");
-      OSTimeSet(0);                            /* Reset system time */
+      OSTimeSet(0);
+      TaskStartTime=OSTimeGet();
+      /* Reset system time */
       /* Delete self */
       OSTaskDel(OS_PRIO_SELF);
   }
@@ -162,7 +164,7 @@
       OSTCBCur->period = param->p;
       OS_EXIT_CRITICAL();
  
-      start = (INT32U)((OSTimeGet() / OSTCBCur->period) * OSTCBCur->period);
+      start = (INT32U)((OSTimeGet() / OSTCBCur->period) * OSTCBCur->period+TaskStartTime);
  
       while(1) {
           /* Consume CPU for c ticks */
@@ -216,27 +218,5 @@
           }
       }
   }
- 
- // /* Print task implementation */
- // void PrintTask(void *pdata)
- // {
- //	while(1) {
- //		#if OS_CRITICAL_METHOD == 3
- //		OS_CPU_SR cpu_sr = 0;
- //		#endif
- //		OS_ENTER_CRITICAL();
- //		if (MsgCount > 0) {
- //			printf("%s\n", MsgQueue[MsgQueueOut]);
- //			MsgQueueOut = (MsgQueueOut + 1) % MAX_MSG_QUEUE;
- //			MsgCount--;
- //		}
- ////		if (MsgReady==1){
- ////			 printf("%s\n", MsgBuffer);
- ////			 MsgReady = 0;
- ////		}
- //		OS_EXIT_CRITICAL();
- //		//OSTimeDly(1);
- //	}
- // }
  
  
