@@ -29,7 +29,7 @@
  // char MsgBuffer[MSG_BUF_SIZE];
  // INT8U MsgReady = 0;
   //way 2
- #define MAX_MSG_QUEUE 30
+ #define MAX_MSG_QUEUE 100
  #define MSG_BUF_SIZE 100
  
  char MsgQueue[MAX_MSG_QUEUE][MSG_BUF_SIZE];  // 消息隊列
@@ -165,6 +165,9 @@
       OS_EXIT_CRITICAL();
  
       start = (INT32U)((OSTimeGet() / OSTCBCur->period) * OSTCBCur->period+TaskStartTime);
+      OS_ENTER_CRITICAL();
+      OSTCBCur->deadline = (INT32U)(start + OSTCBCur->period);
+      OS_EXIT_CRITICAL();
  
       while(1) {
           /* Consume CPU for c ticks */
@@ -184,6 +187,10 @@
           /* Reset computation time counter */
           OS_ENTER_CRITICAL();
           OSTCBCur->compTime = param->c;
+ 
+ //         char tempBuf[MSG_BUF_SIZE];
+ //         sprintf(tempBuf,"Task %d: deadline = %5d\n",  (int)OSTCBCur->OSTCBPrio,(int)OSTCBCur->deadline);
+ //		 AddMessageToQueue(tempBuf);
           OS_EXIT_CRITICAL();
  
           OS_ENTER_CRITICAL();
@@ -202,14 +209,19 @@
  //		  }
  
           /* Delay until next period */
+          OSTimeSet(end);
           if (((int)toDelay) > 0) {
+              OS_ENTER_CRITICAL();
+              OSTCBCur->deadline += (INT32U)OSTCBCur->period;
+              OS_EXIT_CRITICAL();
               OSTimeDly(toDelay);
+ 
           } else {
               /* Deadline violation occurred */
               //printf("%5d Deadline Violation for Task %d\n", (int)OSTimeGet(), (int)OSTCBCur->OSTCBPrio);
-              char tempBuf[MSG_BUF_SIZE];
-              sprintf(tempBuf, "%5d Deadline Violation for Task %d\n", (int)OSTimeGet(), (int)OSTCBCur->OSTCBPrio);
-              AddMessageToQueue(tempBuf);
+ //             char tempBuf[MSG_BUF_SIZE];
+ //			 sprintf(tempBuf, "%5d Deadline Violation for Task %d\n", (int)OSTimeGet(), (int)OSTCBCur->OSTCBPrio);
+ //			 AddMessageToQueue(tempBuf);
  
               /* Reset for next period */
               // 如果出現截止期違例，重新調整週期計數
@@ -218,5 +230,27 @@
           }
       }
   }
+ 
+ // /* Print task implementation */
+ // void PrintTask(void *pdata)
+ // {
+ //	while(1) {
+ //		#if OS_CRITICAL_METHOD == 3
+ //		OS_CPU_SR cpu_sr = 0;
+ //		#endif
+ //		OS_ENTER_CRITICAL();
+ //		if (MsgCount > 0) {
+ //			printf("%s\n", MsgQueue[MsgQueueOut]);
+ //			MsgQueueOut = (MsgQueueOut + 1) % MAX_MSG_QUEUE;
+ //			MsgCount--;
+ //		}
+ ////		if (MsgReady==1){
+ ////			 printf("%s\n", MsgBuffer);
+ ////			 MsgReady = 0;
+ ////		}
+ //		OS_EXIT_CRITICAL();
+ //		//OSTimeDly(1);
+ //	}
+ // }
  
  
