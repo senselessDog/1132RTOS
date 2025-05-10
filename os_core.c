@@ -1704,11 +1704,43 @@ void  OS_Sched (void)
 static  void  OS_SchedNew (void)
 {
 #if OS_LOWEST_PRIO <= 63                         /* See if we support up to 64 tasks                   */
-    INT8U   y;
+#if OS_CRITICAL_METHOD == 3
+    OS_CPU_SR cpu_sr = 0;
+#endif
+    OS_TCB *ptcb;
+    OS_TCB *ptcb_earliest = NULL;
+    INT32U earliest_deadline = 0xFFFFFFFF;  // 初始化為最大值
+    INT8U  highest_prio = OS_LOWEST_PRIO;   // 初始化為最低優先級
 
+    OS_ENTER_CRITICAL();
 
-    y             = OSUnMapTbl[OSRdyGrp];
-    OSPrioHighRdy = (INT8U)((y << 3) + OSUnMapTbl[OSRdyTbl[y]]);
+    // 遍歷所有任務控制塊
+    ptcb = OSTCBList;
+    while (ptcb != (OS_TCB *)0) {
+        // 檢查任務是否就緒
+        if ((ptcb->OSTCBStat & OS_STAT_SUSPEND) == OS_STAT_RDY &&
+            (OSRdyTbl[ptcb->OSTCBY] & ptcb->OSTCBBitX) != 0) {
+
+            // 找出具有最早截止期的任務
+            if (ptcb->deadline < earliest_deadline) {
+                earliest_deadline = ptcb->deadline;
+                ptcb_earliest = ptcb;
+                highest_prio = ptcb->OSTCBPrio;
+            }
+        }
+        ptcb = ptcb->OSTCBNext;
+    }
+
+    // 如果找到具有最早截止期的任務，將其設為最高優先級就緒任務
+    if (ptcb_earliest != NULL) {
+        OSPrioHighRdy = highest_prio;
+    } else {
+        // 如果沒有找到就緒任務，預設為空閒任務
+        OSPrioHighRdy = OS_TASK_IDLE_PRIO;
+    }
+
+    OS_EXIT_CRITICAL();
+
 #else                                            /* We support up to 256 tasks                         */
     INT8U   y;
     INT16U *ptbl;
