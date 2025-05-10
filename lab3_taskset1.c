@@ -150,10 +150,11 @@
       /* Display header */
       printf("\nTime  Event       [From]   [To]\n");
       printf("---------------------------------\n");
-      OSTimeSet(0);
+
       TaskStartTime=OSTimeGet();
       /* Reset system time */
       /* Delete self */
+      OSTimeSet(0);
       OSTaskDel(OS_PRIO_SELF);
   }
 
@@ -196,13 +197,13 @@
         		  OSMutexPend(R1_Mutex,1000,&err);
         		  should_Run_R1=0;
         	  }else if (OSTCBCur->compTime == 2 && should_Run_R2){
-        		  OSMutexPost(R1_Mutex);
         		  OSMutexPend(R2_Mutex,1000,&err);
         		  should_Run_R2=0;
         	  }
           }
           //Finish resource
           OSMutexPost(R2_Mutex);
+          OSMutexPost(R1_Mutex);
 
           /* Calculate end time and delay for next period */
           end = OSTimeGet();
@@ -376,7 +377,7 @@
       OS_ENTER_CRITICAL();
       OSTCBCur->deadline = (INT32U)(start + OSTCBCur->period);
       OS_EXIT_CRITICAL();
-
+      OSTimeSet(0);
       while(1) {
           /* Consume CPU for c ticks */
           //printf("Task %d: high proity %3d\n ",(int)OSTCBCur->OSTCBPrio,(int)OSPrioHighRdy);
@@ -385,6 +386,7 @@
               //printf("[hello] Task %d: compTime = %d\n", (int)OSTCBCur->OSTCBPrio, (int)OSTCBCur->compTime);
               /* Do nothing, just consume CPU time */
         	  if (OSTCBCur->compTime == 7 && should_Run_R1 ){
+        		//   printf("%5d Task3 Enter & Lock R1 Mutex\n",(int)OSTimeGet());
         		  OSMutexPend(R1_Mutex,1000,&err);
 				  should_Run_R1=0;
         	  }
@@ -443,6 +445,5 @@
           }
       }
   }
-
 
 
