@@ -72,7 +72,7 @@ static void prvSetupHardware( void );
  * main_full() is used when mainCREATE_SIMPLE_BLINKY_DEMO_ONLY is set to 0.
  */
 #if( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
-	extern void main_blinky( void );
+	extern void main_lab( void );
 #else
 	extern void main_full( void );
 #endif /* #if mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 */
@@ -107,7 +107,7 @@ int main( void )
 	of this file. */
 	#if( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
 	{
-		main_blinky();
+		main_lab();
 	}
 	#else
 	{

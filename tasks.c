@@ -2081,7 +2081,7 @@ void vTaskStartScheduler( void )
         if( xIdleTaskHandle != NULL )
         {
             // 將 Idle Task 的截止時間設為最大值，使其在 EDF 排程中具有最低的優先權
-            ( ( TCB_t * ) xIdleTaskHandle )->xAbsoluteDeadline = portMAX_DELAY;
+            ( ( TCB_t * ) xIdleTaskHandle )->xAbsoluteDeadline = portMAX_DELAY-1;
         }
     }
     #endif
@@ -3172,17 +3172,17 @@ void vTaskSwitchContext( void )
 //        taskSELECT_HIGHEST_PRIORITY_TASK();
         pxCurrentTCB = prvSelectTaskEDF();
 //        taskENTER_CRITICAL();
-//        if (pxOldTCB != NULL && pxCurrentTCB!=NULL && pxOldTCB!=pxCurrentTCB){
-////            char tempBuf[MSG_BUF_SIZE];
-//            if (pxOldTCB->xRemainingExecutionTime==0){
-//                sprintf(MsgQueue[MsgQueueIn],"%d complete\n", (int)xTaskGetTickCount());
-//            }else{
-//                sprintf(MsgQueue[MsgQueueIn],"%d preempt\n", (int)xTaskGetTickCount());
-//            }
+        if (pxOldTCB != NULL && pxCurrentTCB!=NULL && pxOldTCB!=pxCurrentTCB){
+//            char tempBuf[MSG_BUF_SIZE];
+            if (pxOldTCB->xRemainingExecutionTime==0){
+                sprintf(tempBuf,"%d complete %s %s\n", (int)xTaskGetTickCount(),pxOldTCB->pcTaskName,pxCurrentTCB->pcTaskName);
+            }else{
+                sprintf(tempBuf,"%d preempt %s %s\n", (int)xTaskGetTickCount(),pxOldTCB->pcTaskName,pxCurrentTCB->pcTaskName);
+            }
 //            MsgQueueIn = (MsgQueueIn + 1) % MAX_MSG_QUEUE;
 //            MsgCount++;
-////            AddMessageToQueue(tempBuf);
-//        }
+            AddMessageToQueue(tempBuf);
+        }
 //        taskEXIT_CRITICAL();
 
         traceTASK_SWITCHED_IN();
