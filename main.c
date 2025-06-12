@@ -58,7 +58,7 @@ functionality in an interrupt. */
 
 /* Set mainCREATE_SIMPLE_BLINKY_DEMO_ONLY to one to run the simple blinky demo,
 or 0 to run the more comprehensive test and demo application. */
-#define mainCREATE_SIMPLE_BLINKY_DEMO_ONLY	1
+#define mainCREATE_SIMPLE_BLINKY_DEMO_ONLY  1
 
 /*-----------------------------------------------------------*/
 /*-----------------------------------------------------------*/
@@ -112,7 +112,7 @@ uint8_t ucHeap[configTOTAL_HEAP_SIZE] = {0};
 // Function to backup CPU registers R1-R15
 // Function to backup CPU registers R1-R15
 void backupRegisters(uint16_t *backup_register) {
-    __asm(" mov.w  r1,  0(r12)");    // backup_register[0] = R1
+//    __asm(" mov.w  r1,  0(r12)");    // backup_register[0] = R1
     __asm(" mov.w  r2,  2(r12)");    // backup_register[1] = R2 (SP)
     __asm(" mov.w  r3,  4(r12)");    // backup_register[2] = R3
     __asm(" mov.w  r4,  6(r12)");    // backup_register[3] = R4
@@ -131,7 +131,7 @@ void backupRegisters(uint16_t *backup_register) {
 
 // Function to restore CPU registers R1-R15
 void restoreRegisters(uint16_t *backup_register) {
-    __asm(" mov.w  0(r12),  r1");    // R1 = backup_register[0]
+//    __asm(" mov.w  0(r12),  r1");    // R1 = backup_register[0]
     __asm(" mov.w  2(r12),  r2");    // R2 = backup_register[1] (SP)
     __asm(" mov.w  4(r12),  r3");    // R3 = backup_register[2]
     __asm(" mov.w  6(r12),  r4");    // R4 = backup_register[3]
@@ -169,24 +169,25 @@ void commit(void) {
         backup_target = &checkpoint_a;
         printf("a ");
     }
-
-    // --- Perform backup ---
-//    backupRegisters(backup_target->registers_bak);
-    // 1. Backup ucHeap
-    memcpy(backup_target->heap_bak, ucHeap, configTOTAL_HEAP_SIZE);
-
-    // 2. Backup SRAM (.data and .bss)
-    memcpy(backup_target->data_bak, SRAM_DATA_START, SRAM_DATA_SIZE);
-    memcpy(backup_target->bss_bak, SRAM_BSS_START, SRAM_BSS_SIZE);
-
-    // --- Update status ---
-    // After a successful backup, update the status to validate the new checkpoint
     if (backup_target == &checkpoint_a) {
         checkpoint_status = STATUS_CHECKPOINT_A_VALID;
     } else {
         checkpoint_status = STATUS_CHECKPOINT_B_VALID;
     }
     printf("commit\n");
+    // --- Perform backup ---
+
+    // 1. Backup ucHeap
+    memcpy(backup_target->heap_bak, ucHeap, configTOTAL_HEAP_SIZE);
+
+    // 2. Backup SRAM (.data and .bss)
+    memcpy(backup_target->data_bak, SRAM_DATA_START, SRAM_DATA_SIZE);
+    memcpy(backup_target->bss_bak, SRAM_BSS_START, SRAM_BSS_SIZE);
+    backupRegisters(backup_target->registers_bak);
+
+    // --- Update status ---
+    // After a successful backup, update the status to validate the new checkpoint
+
 }
 
 /**
@@ -214,9 +215,10 @@ void restore(void) {
     // 2. Restore SRAM (.data and .bss)
     memcpy(SRAM_DATA_START, backup_source->data_bak, SRAM_DATA_SIZE);
     memcpy(SRAM_BSS_START, backup_source->bss_bak, SRAM_BSS_SIZE);
-//    restoreRegisters(backup_source->registers_bak);
+    restoreRegisters(backup_source->registers_bak);
+    vTaskStartScheduler();
 }
-static int i = 0;
+static int i = 1;
 
 static void test_task(void *pvParameters)
 {
@@ -245,7 +247,7 @@ static void test_task(void *pvParameters)
 
     while (1)
     {
-        i++;
+
         printf("%d\n", i);
 
         // 每 10 次迴圈 commit 一次
@@ -258,12 +260,14 @@ static void test_task(void *pvParameters)
         if (i >= next_power_fail_count)
         {
             printf("--- Simulating power failure! ---\n");
+            random_interval = i + (rand() % 19);
             // 進入 LPM4.5 低功耗模式，系統將在被喚醒 (例如按下Reset鈕) 後重置
 //            PMM_turnOnRegulator();
             PMM_enterLPM45();
         }
 
         vTaskDelay(pdMS_TO_TICKS(500)); // 延遲 500ms
+        i++;
     }
 }
 void main_lab(void) {
@@ -285,9 +289,9 @@ static void prvSetupHardware( void );
  * main_full() is used when mainCREATE_SIMPLE_BLINKY_DEMO_ONLY is set to 0.
  */
 #if( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
-	extern void main_lab( void );
+    extern void main_lab( void );
 #else
-	extern void main_full( void );
+    extern void main_full( void );
 #endif /* #if mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 */
 
 /* Prototypes for the standard FreeRTOS callback/hook functions implemented
@@ -301,9 +305,9 @@ void vApplicationTickHook( void );
 requires configAPPLICATION_ALLOCATED_HEAP to be set to 1 in FreeRTOSConfig.h.
 See http://www.freertos.org/a00111.html for more information. */
 #ifdef __ICC430__
-	__persistent 					/* IAR version. */
+    __persistent                    /* IAR version. */
 #else
-//	#pragma PERSISTENT( ucHeap ) 	/* CCS version. */
+//  #pragma PERSISTENT( ucHeap )    /* CCS version. */
 #endif
 //uint8_t ucHeap[ configTOTAL_HEAP_SIZE ] = { 0 };
 
@@ -311,53 +315,53 @@ See http://www.freertos.org/a00111.html for more information. */
 
 int main( void )
 {
-	/* See http://www.FreeRTOS.org/MSP430FR5969_Free_RTOS_Demo.html */
+    /* See http://www.FreeRTOS.org/MSP430FR5969_Free_RTOS_Demo.html */
 
-	/* Configure the hardware ready to run the demo. */
-	prvSetupHardware();
-	/* Restore a checkpoint if a power failure occurred. */
+    /* Configure the hardware ready to run the demo. */
+    prvSetupHardware();
+    /* Restore a checkpoint if a power failure occurred. */
     restore();
-	/* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top
-	of this file. */
-	#if( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
-	{
-		main_lab();
-	}
-	#else
-	{
-		main_full();
-	}
-	#endif
+    /* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top
+    of this file. */
+    #if( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
+    {
+        main_lab();
+    }
+    #else
+    {
+        main_full();
+    }
+    #endif
 
-	return 0;
+    return 0;
 }
 /*-----------------------------------------------------------*/
 
 void vApplicationMallocFailedHook( void )
 {
-	/* Called if a call to pvPortMalloc() fails because there is insufficient
-	free memory available in the FreeRTOS heap.  pvPortMalloc() is called
-	internally by FreeRTOS API functions that create tasks, queues, software
-	timers, and semaphores.  The size of the FreeRTOS heap is set by the
-	configTOTAL_HEAP_SIZE configuration constant in FreeRTOSConfig.h. */
+    /* Called if a call to pvPortMalloc() fails because there is insufficient
+    free memory available in the FreeRTOS heap.  pvPortMalloc() is called
+    internally by FreeRTOS API functions that create tasks, queues, software
+    timers, and semaphores.  The size of the FreeRTOS heap is set by the
+    configTOTAL_HEAP_SIZE configuration constant in FreeRTOSConfig.h. */
 
-	/* Force an assert. */
-	configASSERT( ( volatile void * ) NULL );
+    /* Force an assert. */
+    configASSERT( ( volatile void * ) NULL );
 }
 /*-----------------------------------------------------------*/
 
 void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
 {
-	( void ) pcTaskName;
-	( void ) pxTask;
+    ( void ) pcTaskName;
+    ( void ) pxTask;
 
-	/* Run time stack overflow checking is performed if
-	configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
-	function is called if a stack overflow is detected.
-	See http://www.freertos.org/Stacks-and-stack-overflow-checking.html */
+    /* Run time stack overflow checking is performed if
+    configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
+    function is called if a stack overflow is detected.
+    See http://www.freertos.org/Stacks-and-stack-overflow-checking.html */
 
-	/* Force an assert. */
-	configASSERT( ( volatile void * ) NULL );
+    /* Force an assert. */
+    configASSERT( ( volatile void * ) NULL );
 }
 /*-----------------------------------------------------------*/
 
@@ -370,15 +374,15 @@ void vApplicationIdleHook( void )
 
 void vApplicationTickHook( void )
 {
-	#if( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 0 )
-	{
-		/* Call the periodic event group from ISR demo. */
-		vPeriodicEventGroupsProcessing();
+    #if( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 0 )
+    {
+        /* Call the periodic event group from ISR demo. */
+        vPeriodicEventGroupsProcessing();
 
-		/* Call the code that 'gives' a task notification from an ISR. */
-		xNotifyTaskFromISR();
-	}
-	#endif
+        /* Call the code that 'gives' a task notification from an ISR. */
+        xNotifyTaskFromISR();
+    }
+    #endif
 }
 /*-----------------------------------------------------------*/
 
@@ -392,26 +396,26 @@ void vApplicationSetupTimerInterrupt( void )
 {
 const unsigned short usACLK_Frequency_Hz = 32768;
 
-	/* Ensure the timer is stopped. */
-	TA0CTL = 0;
+    /* Ensure the timer is stopped. */
+    TA0CTL = 0;
 
-	/* Run the timer from the ACLK. */
-	TA0CTL = TASSEL_1;
+    /* Run the timer from the ACLK. */
+    TA0CTL = TASSEL_1;
 
-	/* Clear everything to start with. */
-	TA0CTL |= TACLR;
+    /* Clear everything to start with. */
+    TA0CTL |= TACLR;
 
-	/* Set the compare match value according to the tick rate we want. */
-	TA0CCR0 = usACLK_Frequency_Hz / configTICK_RATE_HZ;
+    /* Set the compare match value according to the tick rate we want. */
+    TA0CCR0 = usACLK_Frequency_Hz / configTICK_RATE_HZ;
 
-	/* Enable the interrupts. */
-	TA0CCTL0 = CCIE;
+    /* Enable the interrupts. */
+    TA0CCTL0 = CCIE;
 
-	/* Start up clean. */
-	TA0CTL |= TACLR;
+    /* Start up clean. */
+    TA0CTL |= TACLR;
 
-	/* Up mode. */
-	TA0CTL |= MC_1;
+    /* Up mode. */
+    TA0CTL |= MC_1;
 }
 /*-----------------------------------------------------------*/
 
@@ -420,47 +424,47 @@ static void prvSetupHardware( void )
     /* Stop Watchdog timer. */
     WDT_A_hold( __MSP430_BASEADDRESS_WDT_A__ );
 
-	/* Set all GPIO pins to output and low. */
-	GPIO_setOutputLowOnPin( GPIO_PORT_P1, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
-	GPIO_setOutputLowOnPin( GPIO_PORT_P2, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
-	GPIO_setOutputLowOnPin( GPIO_PORT_P3, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
-	GPIO_setOutputLowOnPin( GPIO_PORT_P4, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
-	GPIO_setOutputLowOnPin( GPIO_PORT_PJ, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 | GPIO_PIN8 | GPIO_PIN9 | GPIO_PIN10 | GPIO_PIN11 | GPIO_PIN12 | GPIO_PIN13 | GPIO_PIN14 | GPIO_PIN15 );
-	GPIO_setAsOutputPin( GPIO_PORT_P1, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
-	GPIO_setAsOutputPin( GPIO_PORT_P2, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
-	GPIO_setAsOutputPin( GPIO_PORT_P3, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
-	GPIO_setAsOutputPin( GPIO_PORT_P4, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
-	GPIO_setAsOutputPin( GPIO_PORT_PJ, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 | GPIO_PIN8 | GPIO_PIN9 | GPIO_PIN10 | GPIO_PIN11 | GPIO_PIN12 | GPIO_PIN13 | GPIO_PIN14 | GPIO_PIN15 );
+    /* Set all GPIO pins to output and low. */
+    GPIO_setOutputLowOnPin( GPIO_PORT_P1, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
+    GPIO_setOutputLowOnPin( GPIO_PORT_P2, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
+    GPIO_setOutputLowOnPin( GPIO_PORT_P3, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
+    GPIO_setOutputLowOnPin( GPIO_PORT_P4, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
+    GPIO_setOutputLowOnPin( GPIO_PORT_PJ, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 | GPIO_PIN8 | GPIO_PIN9 | GPIO_PIN10 | GPIO_PIN11 | GPIO_PIN12 | GPIO_PIN13 | GPIO_PIN14 | GPIO_PIN15 );
+    GPIO_setAsOutputPin( GPIO_PORT_P1, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
+    GPIO_setAsOutputPin( GPIO_PORT_P2, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
+    GPIO_setAsOutputPin( GPIO_PORT_P3, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
+    GPIO_setAsOutputPin( GPIO_PORT_P4, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 );
+    GPIO_setAsOutputPin( GPIO_PORT_PJ, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7 | GPIO_PIN8 | GPIO_PIN9 | GPIO_PIN10 | GPIO_PIN11 | GPIO_PIN12 | GPIO_PIN13 | GPIO_PIN14 | GPIO_PIN15 );
 
-	/* Configure P2.0 - UCA0TXD and P2.1 - UCA0RXD. */
-	GPIO_setOutputLowOnPin( GPIO_PORT_P2, GPIO_PIN0 );
-	GPIO_setAsOutputPin( GPIO_PORT_P2, GPIO_PIN0 );
-	GPIO_setAsPeripheralModuleFunctionInputPin( GPIO_PORT_P2, GPIO_PIN1, GPIO_SECONDARY_MODULE_FUNCTION );
-	GPIO_setAsPeripheralModuleFunctionOutputPin( GPIO_PORT_P2, GPIO_PIN0, GPIO_SECONDARY_MODULE_FUNCTION );
+    /* Configure P2.0 - UCA0TXD and P2.1 - UCA0RXD. */
+    GPIO_setOutputLowOnPin( GPIO_PORT_P2, GPIO_PIN0 );
+    GPIO_setAsOutputPin( GPIO_PORT_P2, GPIO_PIN0 );
+    GPIO_setAsPeripheralModuleFunctionInputPin( GPIO_PORT_P2, GPIO_PIN1, GPIO_SECONDARY_MODULE_FUNCTION );
+    GPIO_setAsPeripheralModuleFunctionOutputPin( GPIO_PORT_P2, GPIO_PIN0, GPIO_SECONDARY_MODULE_FUNCTION );
 
-	/* Set PJ.4 and PJ.5 for LFXT. */
-	GPIO_setAsPeripheralModuleFunctionInputPin(  GPIO_PORT_PJ, GPIO_PIN4 + GPIO_PIN5, GPIO_PRIMARY_MODULE_FUNCTION  );
+    /* Set PJ.4 and PJ.5 for LFXT. */
+    GPIO_setAsPeripheralModuleFunctionInputPin(  GPIO_PORT_PJ, GPIO_PIN4 + GPIO_PIN5, GPIO_PRIMARY_MODULE_FUNCTION  );
 
-	/* Set DCO frequency to 8 MHz. */
-	CS_setDCOFreq( CS_DCORSEL_0, CS_DCOFSEL_6 );
+    /* Set DCO frequency to 8 MHz. */
+    CS_setDCOFreq( CS_DCORSEL_0, CS_DCOFSEL_6 );
 
-	/* Set external clock frequency to 32.768 KHz. */
-	CS_setExternalClockSource( 32768, 0 );
+    /* Set external clock frequency to 32.768 KHz. */
+    CS_setExternalClockSource( 32768, 0 );
 
-	/* Set ACLK = LFXT. */
-	CS_initClockSignal( CS_ACLK, CS_LFXTCLK_SELECT, CS_CLOCK_DIVIDER_1 );
+    /* Set ACLK = LFXT. */
+    CS_initClockSignal( CS_ACLK, CS_LFXTCLK_SELECT, CS_CLOCK_DIVIDER_1 );
 
-	/* Set SMCLK = DCO with frequency divider of 1. */
-	CS_initClockSignal( CS_SMCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1 );
+    /* Set SMCLK = DCO with frequency divider of 1. */
+    CS_initClockSignal( CS_SMCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1 );
 
-	/* Set MCLK = DCO with frequency divider of 1. */
-	CS_initClockSignal( CS_MCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1 );
+    /* Set MCLK = DCO with frequency divider of 1. */
+    CS_initClockSignal( CS_MCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_1 );
 
-	/* Start XT1 with no time out. */
-	CS_turnOnLFXT( CS_LFXT_DRIVE_0 );
+    /* Start XT1 with no time out. */
+    CS_turnOnLFXT( CS_LFXT_DRIVE_0 );
 
-	/* Disable the GPIO power-on default high-impedance mode. */
-	PMM_unlockLPM5();
+    /* Disable the GPIO power-on default high-impedance mode. */
+    PMM_unlockLPM5();
 }
 /*-----------------------------------------------------------*/
 
