@@ -193,6 +193,9 @@ void commit(void) {
 /**
  * @brief Restores the system state from a checkpoint if one is valid.
  */
+static int i = 1;
+static int next_power_fail_count=0;
+static int random_interval=0;
 void restore(void) {
     Checkpoint_t *backup_source;
 
@@ -215,10 +218,14 @@ void restore(void) {
     // 2. Restore SRAM (.data and .bss)
     memcpy(SRAM_DATA_START, backup_source->data_bak, SRAM_DATA_SIZE);
     memcpy(SRAM_BSS_START, backup_source->bss_bak, SRAM_BSS_SIZE);
+    //update timeout
+    next_power_fail_count = i + random_interval;
+    printf("--- System start/resume. Current count: %d. New failure target: %d ---\n", i, next_power_fail_count);
+    //backup register
     restoreRegisters(backup_source->registers_bak);
     vTaskStartScheduler();
 }
-static int i = 1;
+
 
 static void test_task(void *pvParameters)
 {
@@ -229,7 +236,7 @@ static void test_task(void *pvParameters)
     // 這個變數用來儲存下一次斷電時 'i' 的目標計數值。
     // 它可以是函式內的區域變數，因為我們希望每次從斷電中恢復時，
     // 都能重新計算一個新的、不可預測的斷電目標。
-    static int next_power_fail_count=0;
+
 
     // 只有在系統是全新啟動時 (i=0)，才設定隨機數種子。
     // 如果是從斷點恢復 (i != 0)，我們就不重設種子，
@@ -238,7 +245,7 @@ static void test_task(void *pvParameters)
     {
         srand(1234);
     }
-    int random_interval = 11 + (rand() % 19);
+    random_interval = 11 + (rand() % 19);
 
     // 設定下一次發生斷電的目標計數值
     next_power_fail_count = i + random_interval;
